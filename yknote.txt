@@ -1,0 +1,7 @@
+windows下，tag版本（代码版本）必须和cuda版本一直
+
+PS C:\yk_repo> git clone https://github.com/SeekPoint/cuda-samples
+PS C:\yk_repo\cuda-samples> git checkout -b tag_v11.8 tags/v11.8
+Updating files: 100% (1507/1507), done.
+Switched to a new branch 'tag_v11.8'
+PS C:\yk_repo\cuda-samples>

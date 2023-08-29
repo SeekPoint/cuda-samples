@@ -159,10 +159,15 @@ int main(int argc, char **argv) {
 int runTest(const int argc, const char **argv) {
   int start = DEFAULT_SIZE;
   int end = DEFAULT_SIZE;
+
+  // 设备
   int startDevice = 0;
   int endDevice = 0;
+
   int increment = DEFAULT_INCREMENT;
-  testMode mode = QUICK_MODE;
+  testMode mode = QUICK_MODE; // 测试模式，默认 quick 模式
+
+  // 测试内容
   bool htod = false;
   bool dtoh = false;
   bool dtod = false;
@@ -171,9 +176,11 @@ int runTest(const int argc, const char **argv) {
   char *device = NULL;
   printMode printmode = USER_READABLE;
   char *memModeStr = NULL;
-  memoryMode memMode = PINNED;
+  memoryMode memMode = PINNED; // 内存模式，默认使用页锁定内存
 
   // process command line args
+  // 处理命令行参数
+  // 帮助模式，计时器，输出方式
   if (checkCmdLineFlag(argc, argv, "help")) {
     printHelp();
     return 0;
@@ -187,14 +194,14 @@ int runTest(const int argc, const char **argv) {
     if (strcmp(memModeStr, "pageable") == 0) {
       memMode = PAGEABLE;
     } else if (strcmp(memModeStr, "pinned") == 0) {
-      memMode = PINNED;
+      memMode = PINNED; 
     } else {
       printf("Invalid memory mode - valid modes are pageable or pinned\n");
       printf("See --help for more information\n");
       return -1000;
     }
   } else {
-    // default - pinned memory
+    // default - pinned memory 
     memMode = PINNED;
   }
 
@@ -233,7 +240,7 @@ int runTest(const int argc, const char **argv) {
   }
 
   printf("Running on...\n\n");
-
+  // 初始化设备
   for (int currentDevice = startDevice; currentDevice <= endDevice;
        currentDevice++) {
     cudaDeviceProp deviceProp;
@@ -312,6 +319,7 @@ int runTest(const int argc, const char **argv) {
     dtod = true;
   }
 
+  // range 模式需要给出最小和最大尺寸
   if (RANGE_MODE == mode) {
     if (checkCmdLineFlag(argc, (const char **)argv, "start")) {
       start = getCmdLineArgumentInt(argc, argv, "start");
@@ -358,6 +366,7 @@ int runTest(const int argc, const char **argv) {
     }
   }
 
+  // 运行测试
   if (htod) {
     testBandwidth((unsigned int)start, (unsigned int)end,
                   (unsigned int)increment, mode, HOST_TO_DEVICE, printmode,
@@ -376,7 +385,7 @@ int runTest(const int argc, const char **argv) {
                   memMode, startDevice, endDevice, wc);
   }
 
-  // Ensure that we reset all CUDA Devices in question
+  // Ensure that we reset all CUDA Devices in question  // 多设备情况下需要逐一设备同步
   for (int nDevice = startDevice; nDevice <= endDevice; nDevice++) {
     cudaSetDevice(nDevice);
   }
@@ -440,7 +449,7 @@ void testBandwidthRange(unsigned int start, unsigned int end,
     bandwidths[i] = 0.0;
   }
 
-  // Use the device asked by the user
+  // Use the device asked by the user // 逐设备测试
   for (int currentDevice = startDevice; currentDevice <= endDevice;
        currentDevice++) {
     cudaSetDevice(currentDevice);
@@ -504,7 +513,7 @@ void testBandwidthShmoo(memcpyKind kind, printMode printmode,
     bandwidths[i] = 0.0;
   }
 
-  // Use the device asked by the user
+  // Use the device asked by the user  // 逐设备测试
   for (int currentDevice = startDevice; currentDevice <= endDevice;
        currentDevice++) {
     cudaSetDevice(currentDevice);
@@ -586,10 +595,10 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
   checkCudaErrors(cudaEventCreate(&start));
   checkCudaErrors(cudaEventCreate(&stop));
 
-  // allocate host memory
-  if (PINNED == memMode) {
+  // allocate host memory  // 使用页锁定内存或者可分页内存
+  if (PINNED == memMode) {  
   // pinned memory mode - use special function to get OS-pinned memory
-#if CUDART_VERSION >= 2020
+#if CUDART_VERSION >= 2020 // 计算能力 2.2 以上，可选 cudaHostAllocWriteCombined 模式
     checkCudaErrors(cudaHostAlloc((void **)&h_idata, memSize,
                                   (wc) ? cudaHostAllocWriteCombined : 0));
     checkCudaErrors(cudaHostAlloc((void **)&h_odata, memSize,
@@ -599,7 +608,7 @@ float testDeviceToHostTransfer(unsigned int memSize, memoryMode memMode,
     checkCudaErrors(cudaMallocHost((void **)&h_odata, memSize));
 #endif
   } else {
-    // pageable memory mode - use malloc
+    // pageable memory mode - use malloc  // 先放点东西到设备内存中，在收回的时候测试时间
     h_idata = (unsigned char *)malloc(memSize);
     h_odata = (unsigned char *)malloc(memSize);
 
@@ -708,7 +717,7 @@ float testHostToDeviceTransfer(unsigned int memSize, memoryMode memMode,
     }
   }
 
-  unsigned char *h_cacheClear1 = (unsigned char *)malloc(CACHE_CLEAR_SIZE);
+  unsigned char *h_cacheClear1 = (unsigned char *)malloc(CACHE_CLEAR_SIZE); // 占位内存？
   unsigned char *h_cacheClear2 = (unsigned char *)malloc(CACHE_CLEAR_SIZE);
 
   if (h_cacheClear1 == 0 || h_cacheClear2 == 0) {

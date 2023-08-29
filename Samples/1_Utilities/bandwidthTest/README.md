@@ -68,3 +68,10 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+1_Utilities__bandwidthTest  https://www.cnblogs.com/cuancuancuanhao/p/8039654.html
+使用三种模式（QUICK_MODE，RANGE_MODE，SHMOO_MODE），测试三种拷贝情况下的显存带宽（HostToDevice，DeviceToHost，DeviceToDevice）
+涨姿势
+● 申请全局内存时使用新版本的函数 cudaHostAlloc() 与老版本的函数 cudaMallocHost() 性能没有明显差距。
+● 申请全局内存时是否指明合并写入标志，性能没有明显差距。
+● 对不同大小的内存随便进行拷贝，可以发现带宽随碎片大小的增大而增大，并逐渐趋于稳定。设备之间的内存拷贝比设备与主机之间的拷贝速度高一个量级。
+● 从主机内存向设备进行内存拷贝的时候使用了占位内存 h_cacheClear1 和 h_cacheClear2（共 32M 大小），这是为了消除主机内存缓存对内存拷贝的加速作用。

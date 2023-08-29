@@ -7,3 +7,10 @@ Switched to a new branch 'tag_v11.8'
 PS C:\yk_repo\cuda-samples>
 
 从11.6开始，Nvidia将CUDA samples放到github上进行托管，github地址为 NVIDIA/cuda-samples: Samples for CUDA Developers which demonstrates features in CUDA Toolkit (github.com)；
+
+
+tips：
+
+001
+fatal error C1083: Cannot open include file: 'glfw/glfw3.h': No such file or directory
+https://forums.developer.nvidia.com/t/cuda-sample-10-1-compliation-error-with-latest-visual-studio-2017/77355/7

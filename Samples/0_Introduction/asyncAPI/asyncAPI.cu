@@ -34,6 +34,7 @@
  * whether GPU has completed tasks.
  */
 // https://zhuanlan.zhihu.com/p/598109614  CUDA Samples学习笔记: 0_Sample/asyncAPI
+// https://blog.csdn.net/zcy0xy/article/details/84335367 CUDA samples系列 0.1 asyncAPI
 // includes, system
 #include <stdio.h>
 
@@ -45,6 +46,18 @@
 #include <helper_cuda.h>
 #include <helper_functions.h>  // helper utility functions
 
+
+/*
+接下来，说道每个thread是怎么解析这些参数的，首先括号里的参数(d_a, value)是传给每个进程的，然后在核函数内：
+
+先求出进程编号： int idx = blockIdx.x * blockDim.x + threadIdx.x;  blockDim.x 是一个block里面有多好个进程。
+
+然后进程就可以知道分给我的半亩三分地是哪里了，默默地去干我的活就完事了：
+
+g_data[idx] = g_data[idx] + inc_value;
+
+记住，核函数基本都是传递的内存首地址，到时候直接根据首地址+偏移就可以得到我（某个线程）被分配到的半亩三分地了。
+*/
 __global__ void increment_kernel(int *g_data, int inc_value) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   g_data[idx] = g_data[idx] + inc_value;
@@ -60,15 +73,22 @@ bool correct_output(int *data, const int n, const int x) {
   return true;
 }
 
+//根据 int main(int argc, char *argv[])以及c++的知识,可以知道argc是指的输入参数的个数,
+//如果你不输入的话,argc=1,argv="编译得到的你的可执行文件路径";
 int main(int argc, char *argv[]) {
   int devID;
   cudaDeviceProp deviceProps;
 
   printf("[%s] - Starting...\n", argv[0]);
 
-  // This will pick the best possible CUDA capable device  返回最合适的cuda设备；在main函数的开头调用，返回deviceID
+  // This will pick the best possible CUDA capable device  
+  //返回最合适的cuda设备；在main函数的开头调用，返回deviceID
+  // 如果你不输入编号,则它会找到最大Gflops/s的显卡,也就是浮点数运算速度最快的;
   devID = findCudaDevice(argc, (const char **)argv);
 
+  //cudaGetDeviceProperties(&deviceProps, devID) 顾名思义,根据显卡的ID,得到这块显卡的性质;
+  // checkCudaErrors() 很多cuda自带的函数是有状态返回值的,
+  // 如果执行错误的话,就返回错误的编号,这个checkCudaErrors()专门用来根据错误的编号显示错误信息,如果没有错误,就通过了,否则中断在这里;
   // get device name
   checkCudaErrors(cudaGetDeviceProperties(&deviceProps, devID));
   printf("CUDA device [%s]\n", deviceProps.name);
@@ -91,8 +111,23 @@ int main(int argc, char *argv[]) {
   dim3 threads = dim3(512, 1);
   dim3 blocks = dim3(n / threads.x, 1);
 
-  // create cuda event handles
+  /*两个计时函数
+继续我们的代码解析之前,记住2个计时的函数,一个是cpu计时函数,
+这个函数在sdkStartTimer(&timer) 以及 sdkStopTimer(&timer) 之间的程序就是总时间,
+而这两个函数会在什么时候执行呢? 答案是在主程序运行到这里的时候, 也就是cpu拿到主程序的控制权的时候.
+
+这所以说这么一句废话是因为这段代码并不是像我们以前的c++程序一样,上一句执行完了才进入下一句,.
+根据你的设定,你可以让程序像传统的c++一样,等执行完了<GPU代码运行命令>,才会执行下一句sdkStopTimer(&timer)结束计时,这就是"同步执行";
+但是你也可以让显卡执行<GPU代码运行命令>,与此同时你的cpu直接执行下面的sdkStopTimer(&timer),这就是"异步执行".
+以上的黑体字并不十分准确,但是在此我们先这样理解"同步"与"异步".
+
+    */
+
+  // 声明
+  // create cuda event handles  
   cudaEvent_t start, stop;
+
+  // 创建
   checkCudaErrors(cudaEventCreate(&start));
   checkCudaErrors(cudaEventCreate(&stop));
 
@@ -105,19 +140,56 @@ int main(int argc, char *argv[]) {
 
   // asynchronously issue work to the GPU (all to stream 0)
   checkCudaErrors(cudaProfilerStart());
-  sdkStartTimer(&timer);
-  cudaEventRecord(start, 0);
+  sdkStartTimer(&timer); // cpu开始计时
+
+  //<GPU代码运行命令>
+
+
+  /*
+  关于stream, 可以暂时这么理解,一个stream就相当于一个独立的main函数的代码,我们运行程序demo,可以打开终端,输入程序名./demo,
+  回车,那么多打开几个终端就可以多运行几个程序. 而cuda语言允许我们在一份代码中执行好几个这样独立的主程序,一个stream就是一个main函数整体,
+  你可以看到cuda中有隶属于不同stream的代码,你只要记住他们的本质是不同main函数,互相独立,所以cuda并不是我们看到的那样,上一句完毕了才执行下一句.
+
+    这里的计时函数,需要添加stream的标号,因为他是隶属于不同stream的计时程序,只有指定的stream执行到这里了他才会记一下时间,
+    其他的程序走到这里他根本不搭理你,就算是天王老子(比如cpu主程序)也不行.
+
+    待会你会看到这2个计时程序位于代码中同样的位置,然而得到的时间却大不相同,原因很简单,因为他们根本就是在为2个独立的程序计时而已.
+
+    有图！！！ https://blog.csdn.net/zcy0xy/article/details/84335367
+
+    可以看出这两个计时函数是在对不同的代码进行计时，因而得到不同的时间结果也就是理所当然的了。
+    */
+
+
+    //当gpu的这个stream执行到这里时,标记一下这个时间点
+    //这里的0指的是stream的编号,0号stream
+  cudaEventRecord(start, 0);  // Gpu开始计时
+
+  // 销毁
   cudaMemcpyAsync(d_a, a, nbytes, cudaMemcpyHostToDevice, 0);
+
+  /*
+  四、核函数的调用
+        在 CUDA 中，要执行一个核函数，使用以下的语法：
+        函数名称<<<block 数目, thread 数目, shared memory 大小， stream标号>>>(参数...);
+        block是很多个thread的集合，顾名思义block：块，也就是进程块；
+        thread是进程；
+        <<<m, n, 0, 0>>>里的第一个参数是总共准备调用m个block，第二个是每个block里有n个进程，所以总共就是m*n个进程。
+        第三个参数，共享内存大小，先设置为0。
+        第四个参数，就是指定哪个stream了，指明了这个函数隶属于哪个stream。
+  */
   increment_kernel<<<blocks, threads, 0, 0>>>(d_a, value);
   cudaMemcpyAsync(a, d_a, nbytes, cudaMemcpyDeviceToHost, 0);
-  cudaEventRecord(stop, 0);
-  sdkStopTimer(&timer);
+  cudaEventRecord(stop, 0); // Gpu结束计时
+
+  sdkStopTimer(&timer); // cpu结束计时
   checkCudaErrors(cudaProfilerStop());
 
   // have CPU do some work while waiting for stage 1 to finish
   unsigned long int counter = 0;
 
-  while (cudaEventQuery(stop) == cudaErrorNotReady) {
+  //循环结束标记是检查到stop标记， 只有stream0走到stop才会检查到
+  while (cudaEventQuery(stop) == cudaErrorNotReady) {  
     counter++;
   }
 
@@ -220,3 +292,38 @@ CPU执行时间记录，返回单位也是ms
  printf("time spent by CPU in CUDA calls: %.2f\n", sdkGetTimerValue(&timer));
  
  */
+
+
+/*
+五、总结
+调用gpu函数一般按照五步走：
+
+开辟一块内存空间A（cudaMalloc或者cudaMallocHost，第二个函数开辟的空间可以在cpu和gpu同时访问到，第一个只能由gpu访问，但是第一个要快很多）
+把需要运算的数据拷贝到A
+执行运算
+把运算结果拷贝回到cpu
+卸磨杀驴，过河拆桥，释放开辟的空间A（cudaFreeHost(A)，cudaFree(A)）
+下面是输出：
+
+[/root/cuda-workspace/asyncAPI/Release/asyncAPI] - Starting...
+GPU Device 0: "GeForce GTX 1080 Ti" with compute capability 6.1
+
+CUDA device [GeForce GTX 1080 Ti]
+time spent executing by the GPU: 11.05
+time spent by CPU in CUDA calls: 0.03
+CPU executed 49566 iterations while waiting for GPU to finish
+两个时间不一样，这个说过了。
+
+最后输出的一样，是那个while的输出，知道cpu查询到stream0走到了<stop标记点>，才会退出循环。
+
+这就是第一个例程，比我想象的要难，涉及了不好本应该是中后期的知识点，看来nvidia官方给的这个samples并不是循序渐进的难度。
+
+这是第一篇，希望自己能写下去，肛到底。
+
+（11.23后注：这并不是第一个例程，只是他是按照字母排序的，所以这个asyncAPI是第一个，下面的我先挑挑，先写简单的例程。）
+
+
+————————————————
+版权声明：本文为CSDN博主「zcy0xy」的原创文章，遵循CC 4.0 BY-SA版权协议，转载请附上原文出处链接及本声明。
+原文链接：https://blog.csdn.net/zcy0xy/article/details/84335367
+*/

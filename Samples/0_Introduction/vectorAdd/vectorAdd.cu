@@ -33,6 +33,66 @@
  * of the programming guide with some additions like error checking.
  */
 
+
+/*
+* https://blog.csdn.net/zcy0xy/article/details/84452266  CUDA samples系列 0.3 vectorAdd
+这份代码非常的简单和基础，就把两个向量相加。
+
+CPU与GPU同步方法详解
+源代码中的同步
+代码很traditional，完全按照五步走，第一篇提到过的：
+
+开辟一块内存空间A（cudaMalloc或者cudaMallocHost，第二个函数开辟的空间可以在cpu和gpu同时访问到，第一个只能由gpu访问，但是第一个要快很多）
+把需要运算的数据拷贝到A
+GPU执行运算
+把运算结果拷贝回到cpu
+卸磨杀驴，过河拆桥，释放开辟的空间A（cudaFreeHost(A)，cudaFree(A)）
+这里的关键是，2-3-4是怎么保证按照顺序运行的？就是说，我怎么保证2执行完毕了，才能够启动3呢？
+
+要知道在第一篇当中，可是明确地把2-3-4绑定在0号stream上的，很清晰。这里我怎么保证呢？这里的代码没有涉及到stream的编号。那么具体是怎么执行的呢？
+
+这篇官方文档对于stream同步问题做了很好地说明，可以看其中的“CUDA Streams”这一段。
+
+下面开始解释：
+
+这里的内存拷贝函数cudaMemcpy，核函数vectorAdd都没有指定stream，这种情况，所有的GPU相关的代码都被绑定在“stream0”上，所以对于GPU，这三步自然是依次执行的。
+
+对于CPU而言，我们把CPU的这个stream命名为“streamMAX”，第一次内存拷贝是从CPU到GPU，因为牵扯了CPU，所以也隶属于“streamMAX”，第二次从GPU到CPU，同样的CPU也是当事人，所以也隶属于“streamMAX”。
+
+
+
+好的，看下这两个stream都有哪些函数：
+
+
+
+好的，很明确了，同时隶属于不同 stream的一个函数会等待两个stream完成后执行。
+
+同步方法扩展
+明白了这个矢量相加的，我们再来看刚才让大家看的这篇官方文档里的这段有点让人摸不着头脑的代码：
+
+
+
+这里我用stream0标注GPU默认的stream，streamMAX表示CPU主程序的stream。
+
+这样就可以画出他们的执行顺序图:
+
+
+
+这样就一目了然了，注意我图像标注全黑的部分意思是阻塞等待，什么也不执行。
+
+
+
+
+
+扩展一：vectorAdd_nvrtc
+就是把gpu核函数写在cu文件里，其他代码在cpp里，这样就用系统自带的编译器（而不是cuda C/C++编译器）来编译cpp文件，用nvrtc库函数编译cu文件，加快编译速度。
+
+可以参考第二篇
+
+扩展二：vectorAddDrv
+这个是使用cuda的driver api的相关内容，参考官方文档，大概的概念是，相比与runtime API，这是一种更加底层的控制cuda程序的方法，设置也更加复杂。
+
+*/
 #include <stdio.h>
 
 // For the CUDA runtime routines (prefixed with "cuda_")
@@ -47,8 +107,11 @@
  */
 __global__ void vectorAdd(const float *A, const float *B, float *C,
                           int numElements) {
+	//计算线程号i，方法为:
+	//block的ID*一个block内线程的个数+当前的线程ID
   int i = blockDim.x * blockIdx.x + threadIdx.x;
 
+	//如果当前线程号小于矢量的长度，则进行运算
   if (i < numElements) {
     C[i] = A[i] + B[i] + 0.0f;
   }
@@ -62,10 +125,11 @@ int main(void) {
   cudaError_t err = cudaSuccess;
 
   // Print the vector length to be used, and compute its size
-  int numElements = 50000;
-  size_t size = numElements * sizeof(float);
+    int numElements = 50000;//矢量的长度为5万
+    size_t size = numElements * sizeof(float);//需要分配的，每个矢量的空间大小
   printf("[Vector addition of %d elements]\n", numElements);
 
+//为A,B,C三个矢量分配内存空间，在cpu上分配
   // Allocate the host input vector A
   float *h_A = (float *)malloc(size);
 
@@ -81,12 +145,15 @@ int main(void) {
     exit(EXIT_FAILURE);
   }
 
-  // Initialize the host input vectors
-  for (int i = 0; i < numElements; ++i) {
-    h_A[i] = rand() / (float)RAND_MAX;
-    h_B[i] = rand() / (float)RAND_MAX;
-  }
-
+	//A B的值设定为随机值
+    // Initialize the host input vectors
+    for (int i = 0; i < numElements; ++i)
+    {
+        h_A[i] = rand()/(float)RAND_MAX;
+        h_B[i] = rand()/(float)RAND_MAX;
+    }
+ 
+	//为ABC三个矢量分配空间，在GPU上分配
   // Allocate the device input vector A
   float *d_A = NULL;
   err = cudaMalloc((void **)&d_A, size);
@@ -139,6 +206,12 @@ int main(void) {
     exit(EXIT_FAILURE);
   }
 
+	//设定block数，线程数；保证总线程数大于矢量的长度，这样每个矢量中的元素都会被计算到
+	//每个线程计算矢量中的一个元素
+	//这里设定线程与block数是一个常用的方法：
+	//先设定threadsPerBlock为某个值，然后计算blocksPerGrid，公式为：
+	//blocksPerGrid = （要计算的矢量长度+threadsPerBlock-1）/threadsPerBlock
+	//这样可以保证总共可调用线程数>=要计算的矢量长度
   // Launch the Vector Add CUDA Kernel
   int threadsPerBlock = 256;
   int blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;
@@ -153,6 +226,7 @@ int main(void) {
     exit(EXIT_FAILURE);
   }
 
+	//数据拷贝回来
   // Copy the device result vector in device memory to the host result vector
   // in host memory.
   printf("Copy output data from the CUDA device to the host memory\n");
@@ -165,6 +239,7 @@ int main(void) {
     exit(EXIT_FAILURE);
   }
 
+	//检查gpu运算结果，如果计算的偏差超过了1e-5则输出提示
   // Verify that the result vector is correct
   for (int i = 0; i < numElements; ++i) {
     if (fabs(h_A[i] + h_B[i] - h_C[i]) > 1e-5) {
@@ -175,6 +250,7 @@ int main(void) {
 
   printf("Test PASSED\n");
 
+	//释放gpu,cpu内存空间
   // Free device global memory
   err = cudaFree(d_A);
 

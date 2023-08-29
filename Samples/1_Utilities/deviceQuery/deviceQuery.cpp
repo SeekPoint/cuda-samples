@@ -46,6 +46,7 @@ char **pArgv = NULL;
 #include <cuda.h>
 
 // This function wraps the CUDA Driver API into a template function
+// 将 Driver API 的获取属性函数放到模板中
 template <class T>
 inline void getCudaAttribute(T *attribute, CUdevice_attribute device_attribute,
                              int device) {
@@ -149,7 +150,7 @@ int main(int argc, char **argv) {
 
 #else
     // This only available in CUDA 4.0-4.2 (but these were only exposed in the
-    // CUDA Driver API)
+    // CUDA Driver API)  // 在CUDA 4.0 - 4.2 中，需要通过 Driver API 来访问相关属性
     int memoryClock;
     getCudaAttribute<int>(&memoryClock, CU_DEVICE_ATTRIBUTE_MEMORY_CLOCK_RATE,
                           dev);
@@ -256,17 +257,18 @@ int main(int argc, char **argv) {
   }
 
   // If there are 2 or more GPUs, query to determine whether RDMA is supported
+  // 多设备情形，找出最靠前的两张支持 P2P 的设备
   if (deviceCount >= 2) {
     cudaDeviceProp prop[64];
     int gpuid[64];  // we want to find the first two GPUs that can support P2P
     int gpu_p2p_count = 0;
 
-    for (int i = 0; i < deviceCount; i++) {
+    for (int i = 0; i < deviceCount; i++) {  // 在 gpuid 中记录支持 P2P 的设备编号
       checkCudaErrors(cudaGetDeviceProperties(&prop[i], i));
 
       // Only boards based on Fermi or later can support P2P
       if ((prop[i].major >= 2)
-#if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)
+#if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)  // Windows 系统需要安装 Tesla 计算集群驱动
           // on Windows (64-bit), the Tesla Compute Cluster driver for windows
           // must be enabled to support this
           && prop[i].tccDriver
@@ -297,14 +299,14 @@ int main(int argc, char **argv) {
   }
 
   // csv masterlog info
-  // *****************************
+  // *****************************  // 设备环境总况
   // exe and CUDA driver name
   printf("\n");
   std::string sProfileString = "deviceQuery, CUDA Driver = CUDART";
   char cTemp[16];
 
   // driver version
-  sProfileString += ", CUDA Driver Version = ";
+  sProfileString += ", CUDA Driver Version = "; // Driver 版本
 #if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)
   sprintf_s(cTemp, 10, "%d.%d", driverVersion / 1000,
             (driverVersion % 100) / 10);
@@ -315,7 +317,7 @@ int main(int argc, char **argv) {
   sProfileString += cTemp;
 
   // Runtime version
-  sProfileString += ", CUDA Runtime Version = ";
+  sProfileString += ", CUDA Runtime Version = "; // Runtime 版本
 #if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)
   sprintf_s(cTemp, 10, "%d.%d", runtimeVersion / 1000,
             (runtimeVersion % 100) / 10);
@@ -326,7 +328,7 @@ int main(int argc, char **argv) {
   sProfileString += cTemp;
 
   // Device count
-  sProfileString += ", NumDevs = ";
+  sProfileString += ", NumDevs = "; // 设备数
 #if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)
   sprintf_s(cTemp, 10, "%d", deviceCount);
 #else

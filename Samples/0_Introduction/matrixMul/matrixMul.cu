@@ -39,6 +39,8 @@
  * Piscataway, NJ: IEEE Press, 2008, pp. Art. 31:1-11.
  */
 
+//CUDA samplesœµ¡– 0.6 matrixMul  https://blog.csdn.net/zcy0xy/article/details/84532826
+
 // System includes
 #include <stdio.h>
 #include <assert.h>

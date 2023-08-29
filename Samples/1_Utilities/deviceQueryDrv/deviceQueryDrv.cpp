@@ -332,7 +332,7 @@ int main(int argc, char **argv) {
   }
 
   // If there are 2 or more GPUs, query to determine whether RDMA is supported
-  if (deviceCount >= 2) {
+  if (deviceCount >= 2) {  // 多设备情形
     int gpuid[64];  // we want to find the first two GPUs that can support P2P
     int gpu_p2p_count = 0;
     int tccDriver = 0;

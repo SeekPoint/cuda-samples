@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaGetDeviceCount(&deviceCount));
 
   // Enumerates Device <-> Device links
-  for (int device1 = 0; device1 < deviceCount; device1++) {
+  for (int device1 = 0; device1 < deviceCount; device1++) {// 设备间拓扑
     for (int device2 = 0; device2 < deviceCount; device2++) {
       if (device1 == device2) continue;
 
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   }
 
   // Enumerates Device <-> Host links
-  for (int device = 0; device < deviceCount; device++) {
+  for (int device = 0; device < deviceCount; device++) { // 设备与主机间间拓扑
     int atomicSupported = 0;
     checkCudaErrors(cudaDeviceGetAttribute(
         &atomicSupported, cudaDevAttrHostNativeAtomicSupported, device));

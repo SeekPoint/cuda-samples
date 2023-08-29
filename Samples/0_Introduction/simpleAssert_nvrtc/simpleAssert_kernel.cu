@@ -31,7 +31,23 @@
 //! Tests assert function.
 //! Thread whose id > N will print assertion failed error message.
 ////////////////////////////////////////////////////////////////////////////////
+/*
+* https://blog.csdn.net/q583956932/article/details/78764301  CUDA学习笔记(3) NVRTC编译库
+* 
+扩展：simpleAssert_nvrtc
+这是与simpleAssert实验同样功能的一份代码。
 
+这里的区别是：通过nvtc编译库，来编译cuda核函数，同时，将除此以外的代码全部放在一个cpp文件里去。
+
+至于为什么这么做，可以参考这里：
+
+https://blog.csdn.net/q583956932/article/details/78764301
+
+简单概括下就是：不这么做的话，就得用cuda c/c++编译器来编译cpp代码，这是非常慢的。这样的话，可以用系统自带的c/c++编译器编译cpp，用nvrtc编译cu文件。编译很快。
+
+看了下感觉就这样，源代码注释很详细，没必要详细说了。而且目前暂时一般也不会用到这个nvrtc来分开编译cpp与cuda。
+https://blog.csdn.net/zcy0xy/article/details/84424182
+*/
 extern "C" __global__ void testKernel(int N) {
   int gtid = blockIdx.x * blockDim.x + threadIdx.x;
   assert(gtid < N);

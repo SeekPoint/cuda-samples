@@ -24,6 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+// https ://blog.csdn.net/zcy0xy/article/details/84424182  CUDA samples系列 0.2 simpleAssert
 
 #ifdef _WIN32
 #define WINDOWS_LEAN_AND_MEAN
@@ -32,6 +33,19 @@
 #else
 #include <sys/utsname.h>
 #endif
+
+/*
+在这个库中，有个结构utsname，里面可以获取这些信息。
+
+struct utsname
+  { char sysname[_UTSNAME_SYSNAME_LENGTH];//当前操作系统名
+   char nodename[_UTSNAME_NODENAME_LENGTH];//网络上的名称
+   char release[_UTSNAME_RELEASE_LENGTH];//当前发布级别
+   char version[_UTSNAME_VERSION_LENGTH];//当前发布版本
+   char machine[_UTSNAME_MACHINE_LENGTH];//当前硬件体系类型
+
+*/
+
 
 // Includes, system
 #include <stdio.h>
@@ -58,6 +72,9 @@ bool testResult = true;
 //! Tests assert function.
 //! Thread whose id > N will print assertion failed error message.
 ////////////////////////////////////////////////////////////////////////////////
+/*
+这是核函数，输入的60，计算出线程号,断言线程号<60后。开辟的线程数2*32=64，线程号从0开始，所以60,61,62,63这4个线程号会被断言错误
+*/
 __global__ void testKernel(int N) {
   int gtid = blockIdx.x * blockDim.x + threadIdx.x;
   assert(gtid < N);
@@ -105,6 +122,8 @@ void runTest(int argc, char **argv) {
 
   // Kernel configuration, where a one-dimensional
   // grid and one-dimensional blocks are configured.
+  // dim3 这个类型，定义核函数的block个数，thread个数，基本都用这个类型。可以是1,2,3维的，这里是一维的。
+  // 实际上，你如果只写一维的话，比如上面代码里dim3 dimGrid(Nblocks)， 它会看作是dim3 dimGrid(Nblocks，1，1)，最后总归是三维的。
   dim3 dimGrid(Nblocks);
   dim3 dimBlock(Nthreads);
 
@@ -113,10 +132,23 @@ void runTest(int argc, char **argv) {
 
   // Synchronize (flushes assert output).
   printf("\n-- Begin assert output\n\n");
+
+  /*
+  先看这句。cudaDeviceSynchronize() 会阻塞当前程序的执行，直到所有任务都处理完毕；
+  也就是说，程序走到这里，会等待这句话之前的所有代码全部执行完毕了，所有的stream都执行完毕了，
+  关于stream，上一篇0.1已经做了详细直观的解释。
+
+  也有与stream绑定的阻塞等待函数：cudaStreamSynchronize(streamID)带有一个参数，cuda流ID，
+  它只阻塞那些cuda流ID等于参数中指定ID的那些cuda例程，对于那些流ID不等的例程，还是异步执行的。
+    */
   error = cudaDeviceSynchronize();
   printf("\n-- End assert output\n\n");
 
   // Check for errors and failed asserts in asynchronous kernel launch.
+  /*
+  这里有个cudaErrorAssert，是个没有定义的，应该是专有名词，最后再cuda官方教程中找到了
+  在这里：https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html
+  */
   if (error == cudaErrorAssert) {
     printf(
         "Device assert failed as expected, "

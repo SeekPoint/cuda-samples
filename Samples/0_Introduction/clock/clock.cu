@@ -44,7 +44,20 @@
 // helper functions and utilities to work with CUDA
 #include <helper_cuda.h>
 #include <helper_functions.h>
+/*
+* 
+这个代码主要是展示随着设定的block的增加，时间并不是越多block越快，反而超过一定的限制，会出现明显的传输拥堵，latency越来越难以隐藏。
+动态共享内存
+如果在写核函数时不知道共享内存的大小，可以使用动态共享内存，在调用函数时才设定其大小。方法为在核函数中定义：
 
+extern __shared__ float shared[];
+
+在调用核函数时：
+
+timedReduction<<<NUM_BLOCKS, NUM_THREADS,  共享内存大小>>>(dinput, doutput, dtimer);
+核函数解析
+
+*/
 // This kernel computes a standard parallel reduction and evaluates the
 // time it takes to do that for each block. The timing results are stored
 // in device memory.
@@ -52,19 +65,22 @@ __global__ static void timedReduction(const float *input, float *output,
                                       clock_t *timer) {
   // __shared__ float shared[2 * blockDim.x];
   extern __shared__ float shared[];
+  //定义时不知道shared memory的大小，在调用时<<<>>>中第三个参数就是
 
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
 
-  if (tid == 0) timer[bid] = clock();
+  if (tid == 0) timer[bid] = clock(); //每个block中的第0号thread计时开始
 
   // Copy input.
-  shared[tid] = input[tid];
-  shared[tid + blockDim.x] = input[tid + blockDim.x];
+    //复制到block的共享内存
+    //每个block有256个thread，input里是0-255,256-511
+  shared[tid] = input[tid]; //block内线程号 
+  shared[tid + blockDim.x] = input[tid + blockDim.x]; //block内线程号+256
 
   // Perform reduction to find minimum.
   for (int d = blockDim.x; d > 0; d /= 2) {
-    __syncthreads();
+    __syncthreads();  //阻塞，等到同一个block内的thread都走到了这里，才会继续
 
     if (tid < d) {
       float f0 = shared[tid];
@@ -77,9 +93,10 @@ __global__ static void timedReduction(const float *input, float *output,
   }
 
   // Write result.
+  //取每个block第0个thread的结果作为这个block的最终结果
   if (tid == 0) output[bid] = shared[0];
 
-  __syncthreads();
+  __syncthreads();  //同一个block内的thread都走到了这里，才继续，好能准确计时
 
   if (tid == 0) timer[bid + gridDim.x] = clock();
 }
@@ -151,3 +168,14 @@ int main(int argc, char **argv) {
 
   return EXIT_SUCCESS;
 }
+
+/*
+主函数解析
+代码很简单，介绍下运行结果
+// block:64 35237
+// block:1 26824
+// block:8 26823
+可以看到block的增加本应该不会影响时间的，但是增加到64时，明显开始变慢了。源码的英文注释提到，在G80显卡上运行时，超过32个block，时间就与block数成线性增长了。我则没有测试更多的block数目了。
+————————————————
+https://blog.csdn.net/zcy0xy/article/details/84502030  CUDA samples系列 0.5 clock
+*/

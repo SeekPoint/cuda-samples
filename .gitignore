@@ -2,5 +2,5 @@
 bin/*
 */**/x64/*
 .vs/
-*.vcxproj
-*.vcxproj.user
+*/**/*.vcxproj
+*/**/*.vcxproj.user

@@ -68,3 +68,17 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+https://www.cnblogs.com/cuancuancuanhao/p/8013139.html
+简单的将纯 C/C++ 函数放到另一个文件中，利用头文件引用到主体 .cu 中来，编译时共同编译。
+源代码，把 C++ 的部分去掉了
+
+涨姿势
+
+复制代码
+// cuda_runtime_api.h
+#define __dv(v) \
+        = v
+
+extern __host__ cudaError_t CUDARTAPI cudaMemcpyFromSymbol(void *dst, const void *symbol, size_t count, size_t offset __dv(0), 
+                                                            enum cudaMemcpyKind kind __dv(cudaMemcpyDeviceToHost));
+    // 从指定符号 symbol 处偏移 offset 字节处，拷贝 count 字节到 dst，默认模式为设备拷到主机

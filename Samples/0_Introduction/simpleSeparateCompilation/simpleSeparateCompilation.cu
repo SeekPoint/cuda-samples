@@ -60,7 +60,7 @@ bool testResult = true;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Static device pointers to __device__ functions.
-__device__ deviceFunc dMultiplyByTwoPtr = multiplyByTwo;
+__device__ deviceFunc dMultiplyByTwoPtr = multiplyByTwo;  // 本地声明，直接在代码中调用 multiplyByTwo / divideByTwo 会导致运行时错误
 __device__ deviceFunc dDivideByTwoPtr = divideByTwo;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -126,9 +126,8 @@ void runTest(int argc, const char **argv) {
     dim3 dimBlock(nThreads);
 
     // Test library functions.
-    deviceFunc hFunctionPtr;
-
-    cudaMemcpyFromSymbol(&hFunctionPtr, dMultiplyByTwoPtr, sizeof(deviceFunc));
+    deviceFunc hFunctionPtr;                                                    // 作为调用参数的函数指针
+    cudaMemcpyFromSymbol(&hFunctionPtr, dMultiplyByTwoPtr, sizeof(deviceFunc)); // 给 hFunctionPtr 一个地址，方便调用
     transformVector<<<dimGrid, dimBlock>>>(dVector, hFunctionPtr, kVectorSize);
     checkCudaErrors(cudaGetLastError());
 

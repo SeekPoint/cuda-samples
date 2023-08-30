@@ -133,7 +133,7 @@ int main(int argc, char **argv) {
 void runTest(int argc, char **argv) {
   int devID = findCudaDevice(argc, (const char **)argv);
 
-  // load image from disk
+  // load image from disk  // 读取图片数据
   float *hData = NULL;
   unsigned int width, height;
   char *imagePath = sdkFindFilePath(imageFilename, argv[0]);
@@ -159,7 +159,7 @@ void runTest(int argc, char **argv) {
 
   sdkLoadPGM(refPath, &hDataRef, &width, &height);
 
-  // Allocate device memory for result
+  // Allocate device memory for result // 申请设备内存
   float *dData = NULL;
   checkCudaErrors(cudaMalloc((void **)&dData, size));
 
@@ -169,7 +169,7 @@ void runTest(int argc, char **argv) {
   cudaArray *cuArray;
   checkCudaErrors(cudaMallocArray(&cuArray, &channelDesc, width, height));
   checkCudaErrors(
-      cudaMemcpyToArray(cuArray, 0, 0, hData, size, cudaMemcpyHostToDevice));
+      cudaMemcpyToArray(cuArray, 0, 0, hData, size, cudaMemcpyHostToDevice)); // 与 simpleSurfaceWrite 中不同，直接拷贝进 cuArray 
 
   cudaTextureObject_t tex;
   cudaResourceDesc texRes;
@@ -180,7 +180,7 @@ void runTest(int argc, char **argv) {
 
   cudaTextureDesc texDescr;
   memset(&texDescr, 0, sizeof(cudaTextureDesc));
-
+  // 绑定纹理引用
   texDescr.normalizedCoords = true;
   texDescr.filterMode = cudaFilterModeLinear;
   texDescr.addressMode[0] = cudaAddressModeWrap;
@@ -192,7 +192,7 @@ void runTest(int argc, char **argv) {
   dim3 dimBlock(8, 8, 1);
   dim3 dimGrid(width / dimBlock.x, height / dimBlock.y, 1);
 
-  // Warmup
+  // Warmup  // 预跑
   transformKernel<<<dimGrid, dimBlock, 0>>>(dData, width, height, angle, tex);
 
   checkCudaErrors(cudaDeviceSynchronize());
@@ -218,7 +218,7 @@ void runTest(int argc, char **argv) {
   // copy result from device to host
   checkCudaErrors(cudaMemcpy(hOutputData, dData, size, cudaMemcpyDeviceToHost));
 
-  // Write result to file
+  // Write result to file // 结果回收、输出和检验
   char outputFilename[1024];
   strcpy(outputFilename, imagePath);
   strcpy(outputFilename + strlen(imagePath) - 4, "_out.pgm");

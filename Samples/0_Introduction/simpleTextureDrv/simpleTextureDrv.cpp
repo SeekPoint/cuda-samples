@@ -309,7 +309,7 @@ static CUresult initCUDA(int argc, char **argv, CUfunction *transform) {
   checkCudaErrors(cuDeviceGetName(deviceName, sizeof(deviceName), cuDevice));
   printf("> GPU Device has SM %d.%d compute capability\n", major, minor);
 
-  checkCudaErrors(cuCtxCreate(&cuContext, 0, cuDevice));
+  checkCudaErrors(cuCtxCreate(&cuContext, 0, cuDevice));  // 创建上下文，后两个参数分别是标志参数和设备号
 
   // first search for the module_path before we try to load the results
   std::ostringstream fatbin;

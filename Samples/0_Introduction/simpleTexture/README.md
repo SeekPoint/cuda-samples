@@ -68,3 +68,4 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+使用纹理引用来旋转图片，并在使用了静态编译和运行时编译两种环境。

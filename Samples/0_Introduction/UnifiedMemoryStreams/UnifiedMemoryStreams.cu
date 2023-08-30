@@ -35,7 +35,7 @@
 #include <ctime>
 #include <vector>
 #include <algorithm>
-#ifdef USE_PTHREADS
+#ifdef USE_PTHREADS // 使用 pthread 时补充定义 USE_PTHREADS
 #include <pthread.h>
 #else
 #include <omp.h>
@@ -48,6 +48,7 @@
 // utilities
 #include <helper_cuda.h>
 
+// Windows 系统需要构造与函数 SRAND48 和 DRAND48 等价的随机函数
 #if defined(WIN32) || defined(_WIN32) || defined(WIN64) || defined(_WIN64)
 // SRAND48 and DRAND48 don't exist on windows, but these are the equivalent
 // functions
@@ -57,7 +58,7 @@ double drand48() { return double(rand()) / RAND_MAX; }
 
 const char *sSDKname = "UnifiedMemoryStreams";
 
-// simple task
+// simple task  // struct 也可使用类的构造和析构函数
 template <typename T>
 struct Task {
   unsigned int size, id;
@@ -83,6 +84,7 @@ struct Task {
     checkCudaErrors(cudaFree(vector));
   }
 
+  // 申请内存，初始化各成员数组
   void allocate(const unsigned int s, const unsigned int unique_id) {
     // allocate unified memory outside of constructor
     id = unique_id;
@@ -104,6 +106,7 @@ struct Task {
   }
 };
 
+//#define USE_PTHREADS // 封装 pthread 型的任务
 #ifdef USE_PTHREADS
 struct threadData_t {
   int tid;
@@ -118,9 +121,9 @@ typedef struct threadData_t threadData;
 
 // simple host dgemv: assume data is in row-major format and square
 template <typename T>
-void gemv(int m, int n, T alpha, T *A, T *x, T beta, T *result) {
+void gemv(int m, int n, T alpha, T *A, T *x, T beta, T *result) {  // 计算 result = α * A * x + β * result
   // rows
-  for (int i = 0; i < n; i++) {
+  for (int i = 0; i < n; i++) {  // 源代码这写成了 n，并且漏掉了后面的 alpha
     result[i] *= beta;
 
     for (int j = 0; j < n; j++) {
@@ -140,7 +143,7 @@ void *execute(void *inpArgs) {
   for (int i = 0; i < dataPtr->taskSize; i++) {
     Task<double> &t = dataPtr->TaskListPtr[i];
 
-    if (t.size < 100) {
+    if (t.size < 100) {  // 数据规模较小在主机上运行，否则在设备上运行
       // perform on host
       printf("Task [%d], thread [%d] executing on host (%d)\n", t.id, tid,
              t.size);
@@ -185,7 +188,7 @@ void *execute(void *inpArgs) {
 template <typename T>
 void execute(Task<T> &t, cublasHandle_t *handle, cudaStream_t *stream,
              int tid) {
-  if (t.size < 100) {
+  if (t.size < 100) {  // 数据规模较小在主机上运行，否则在设备上运行
     // perform on host
     printf("Task [%d], thread [%d] executing on host (%d)\n", t.id, tid,
            t.size);
@@ -249,7 +252,7 @@ int main(int argc, char **argv) {
     exit(EXIT_WAIVED);
   }
 
-  if (device_prop.computeMode == cudaComputeModeProhibited) {
+  if (device_prop.computeMode == cudaComputeModeProhibited) {  // Device 为线程禁用模式
     // This sample requires being run with a default or process exclusive mode
     fprintf(stderr,
             "This sample requires a device in either default or process "
@@ -292,11 +295,12 @@ int main(int argc, char **argv) {
     InputToThreads[i].streams = streams;
     InputToThreads[i].handles = handles;
 
-    if ((TaskList.size() / nthreads) == 0) {
+    if ((TaskList.size() / nthreads) == 0) {  // 任务数量比线程数少
       InputToThreads[i].taskSize = (TaskList.size() / nthreads);
       InputToThreads[i].TaskListPtr =
           &TaskList[i * (TaskList.size() / nthreads)];
-    } else {
+    } else {    
+        // 任务数量不少于线程数。任务尽量均分，多出的零头全部塞给最后一个线程
       if (i == nthreads - 1) {
         InputToThreads[i].taskSize =
             (TaskList.size() / nthreads) + (TaskList.size() % nthreads);
@@ -327,7 +331,7 @@ int main(int argc, char **argv) {
 
   cudaDeviceSynchronize();
 
-  // Destroy CUDA Streams, cuBlas handles
+  // Destroy CUDA Streams, cuBlas handles  // 清理工作
   for (int i = 0; i < nthreads + 1; i++) {
     cudaStreamDestroy(streams[i]);
     cublasDestroy(handles[i]);

@@ -72,3 +72,29 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+
+https://www.cnblogs.com/cuancuancuanhao/p/8012435.html
+使用 OpenMP 和 pthreads 两种环境，利用实现统一内存编址，计算基本的矩阵乘法 result = α * A * x + β * result 。
+
+ 涨姿势：
+
+● 使用 C++ 结构体完成了类似类的方法。即在结构体中定义构造函数、析构函数及其他方法。
+
+● 使用了 cuBLAS 库，注意句柄的使用和库函数的调用。
+
+● 用到的申请内存的函数
+
+
+ 1 // driver_types.h
+ 2 #define cudaMemAttachGlobal 0x01  // 可访问内存
+ 3 #define cudaMemAttachHost   0x02  // 不可访问内存
+ 4 #define cudaMemAttachSingle 0x04  // 单线程可访问内存
+ 5 
+ 6 // cuda_runtime.h
+ 7 template<class T> static __inline__ __host__ cudaError_t cudaStreamAttachMemAsync(cudaStream_t stream, T *devPtr, size_t length = 0, unsigned int flags = cudaMemAttachSingle)
+ 8 {
+ 9     return ::cudaStreamAttachMemAsync(stream, (void*)devPtr, length, flags);
+10 }
+11 
+12 // cuda_runtime_api.h
+13 extern __host__ __cudart_builtin__ cudaError_t CUDARTAPI cudaStreamAttachMemAsync(cudaStream_t stream, void *devPtr, size_t length __dv(0), unsigned int flags __dv(cudaMemAttachSingle));

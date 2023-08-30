@@ -128,7 +128,7 @@ void runTest(int argc, char **argv) {
   testKernel<<<grid, threads, mem_size>>>(d_idata, d_odata);
 
   // check if kernel execution generated and error
-  getLastCudaError("Kernel execution failed");
+  getLastCudaError("Kernel execution failed"); // 检查内核调用的报错结果
 
   // allocate mem for the result on host side
   float *h_odata = (float *)malloc(mem_size);

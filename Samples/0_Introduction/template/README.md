@@ -68,3 +68,4 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+简单的 CUDA 应用模板，白送的 Sample。

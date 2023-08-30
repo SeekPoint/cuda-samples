@@ -68,3 +68,4 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+使用 CUDA Runtime API，运行时编译，Driver API 三种接口计算向量加法

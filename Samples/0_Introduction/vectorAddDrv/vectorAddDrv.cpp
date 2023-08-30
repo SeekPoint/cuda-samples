@@ -57,7 +57,7 @@ CUfunction vecAdd_kernel;
 float *h_A;
 float *h_B;
 float *h_C;
-CUdeviceptr d_A;
+CUdeviceptr d_A;FATBIN_FILE
 CUdeviceptr d_B;
 CUdeviceptr d_C;
 
@@ -78,18 +78,18 @@ int main(int argc, char **argv) {
   size_t size = N * sizeof(float);
 
   // Initialize
-  checkCudaErrors(cuInit(0));
+  checkCudaErrors(cuInit(0));  // 相当于 runtime API 的 cudaSetDevice(0);，要先初始化设备才能创建上下文
 
   cuDevice = findCudaDeviceDRV(argc, (const char **)argv);
   // Create context
   checkCudaErrors(cuCtxCreate(&cuContext, 0, cuDevice));
 
   // first search for the module path before we load the results
-  string module_path;
+  string module_path;  // 编译
 
   std::ostringstream fatbin;
 
-  if (!findFatbinPath(FATBIN_FILE, module_path, argv, fatbin)) {
+  if (!findFatbinPath(FATBIN_FILE, module_path, argv, fatbin)) {  // 使用的是.ptx，需要运行时编译
     exit(EXIT_FAILURE);
   } else {
     printf("> initCUDA loading module: <%s>\n", module_path.c_str());

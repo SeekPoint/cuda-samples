@@ -60,7 +60,7 @@
 // Define the files that are to be save and the reference images for validation
 const char *imageFilename = "teapot512.pgm";
 const char *refFilename = "ref_rotated.pgm";
-float angle = 0.5f;  // angle to rotate image by (in radians)
+float angle = 0.5f;  // angle to rotate image by (in radians) // 弧度制
 
 // Auto-Verification Code
 bool testResult = true;
@@ -73,6 +73,7 @@ static const char *sampleName = "simpleSurfaceWrite";
 //! Write to a cuArray (texture data source) using surface writes
 //! @param gIData input data in global memory
 ////////////////////////////////////////////////////////////////////////////////
+// 使用表面写入，将全局内存中的数据 d_data 写到绑定了纹理引用的 CUDA 数组 cuArray 中
 __global__ void surfaceWriteKernel(float *gIData, int width, int height,
                                    cudaSurfaceObject_t outputSurface) {
   // calculate surface coordinates
@@ -88,6 +89,7 @@ __global__ void surfaceWriteKernel(float *gIData, int width, int height,
 //! Transform an image using texture lookups
 //! @param gOData  output data in global memory
 ////////////////////////////////////////////////////////////////////////////////
+// 利用纹理取样，将绑定了纹理引用的 CUDA 数组 cuArray 中的图片进行旋转，写入全局内存 d_data 中
 __global__ void transformKernel(float *gOData, int width, int height,
                                 float theta, cudaTextureObject_t tex) {
   // calculate normalized texture coordinates
@@ -162,7 +164,7 @@ void runTest(int argc, char **argv) {
          deviceProps.name, deviceProps.multiProcessorCount, deviceProps.major,
          deviceProps.minor);
 
-  // Load image from disk
+  // Load image from disk // 读取图片数据
   float *hData = NULL;
   unsigned int width, height;
   char *imagePath = sdkFindFilePath(imageFilename, argv[0]);
@@ -188,7 +190,7 @@ void runTest(int argc, char **argv) {
 
   sdkLoadPGM(refPath, &hDataRef, &width, &height);
 
-  // Allocate device memory for result
+  // Allocate device memory for result  // 申请设备内存
   float *dData = NULL;
   checkCudaErrors(cudaMalloc((void **)&dData, size));
 

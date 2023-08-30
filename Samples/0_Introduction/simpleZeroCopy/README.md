@@ -68,3 +68,11 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+两种方法使用零拷贝内存做简单的向量加和，并评估 GPU 计算结果与 CPU 计算结果的差。
+
+涨姿势
+两种使用零拷贝内存的方法，在代码的逻辑部分进行了说明
+向上取整的宏函数，只对分母（size）为 2 的整数次幂的情况有效。
+
+1 #define ALIGN_UP(x,size) ( ((size_t)x+(size-1))&(~(size-1)) )
+　　e.g. size == 4096，则 ~ (size - 1) == 11111111 11111111 11110000 000000002，将其作为模板进行按位且操作，等价于取不低于 4096 的高位。

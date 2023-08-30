@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
   }
 
   if (checkCmdLineFlag(argc, (const char **)argv, "use_generic_memory")) {
-#if defined(__APPLE__) || defined(MACOSX)
+#if defined(__APPLE__) || defined(MACOSX)  // MacOS 系统不支持将普通堆内存设置为页锁定内存
     bPinGenericMemory = false;  // Generic Pinning of System Paged memory is not
                                 // currently supported on Mac OSX
 #else
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     exit(EXIT_SUCCESS);
   }
 
-  checkCudaErrors(cudaSetDeviceFlags(cudaDeviceMapHost));
+  checkCudaErrors(cudaSetDeviceFlags(cudaDeviceMapHost));  // MapHostFlag 功能正常，设置标志
 #else
   fprintf(stderr,
           "CUDART version %d.%d does not support "
@@ -137,7 +137,11 @@ int main(int argc, char **argv) {
 
   exit(EXIT_SUCCESS);
 #endif
-
+// 总体逻辑：
+// CUDA Runtime version < 2200，不支持 MApHostMamory，退出
+// CUDA Runtime version ∈[2200, 4000)，且为 MAcOS 系统，使用 cudaHostAlloc() + cudaHostAllocMapped
+// CUDA Runtime version ∈[2200, 4000)，且不是 MAcOS 系统，退出
+// CUDA Runtime version ≥ 4000，使用 malloc() + cudaHostRegister()
 #if CUDART_VERSION < 4000
 
   if (bPinGenericMemory) {
@@ -152,37 +156,37 @@ int main(int argc, char **argv) {
 #endif
 
   /* Allocate mapped CPU memory. */
-
+  // 内存申请
   nelem = 1048576;
   bytes = nelem * sizeof(float);
 
   if (bPinGenericMemory) {
 #if CUDART_VERSION >= 4000
-    a_UA = (float *)malloc(bytes + MEMORY_ALIGNMENT);
+    a_UA = (float *)malloc(bytes + MEMORY_ALIGNMENT);  // 申请时多 4KB，用于滑动对齐，释放内存时以该指针为准
     b_UA = (float *)malloc(bytes + MEMORY_ALIGNMENT);
     c_UA = (float *)malloc(bytes + MEMORY_ALIGNMENT);
 
     // We need to ensure memory is aligned to 4K (so we will need to padd memory
     // accordingly)
-    a = (float *)ALIGN_UP(a_UA, MEMORY_ALIGNMENT);
+    a = (float *)ALIGN_UP(a_UA, MEMORY_ALIGNMENT);  // 指针指到 4K 对齐的位置上去，用于计算
     b = (float *)ALIGN_UP(b_UA, MEMORY_ALIGNMENT);
     c = (float *)ALIGN_UP(c_UA, MEMORY_ALIGNMENT);
 
-    checkCudaErrors(cudaHostRegister(a, bytes, cudaHostRegisterMapped));
+    checkCudaErrors(cudaHostRegister(a, bytes, cudaHostRegisterMapped));  // 设置页锁定内存
     checkCudaErrors(cudaHostRegister(b, bytes, cudaHostRegisterMapped));
     checkCudaErrors(cudaHostRegister(c, bytes, cudaHostRegisterMapped));
 #endif
   } else {
 #if CUDART_VERSION >= 2020
     flags = cudaHostAllocMapped;
-    checkCudaErrors(cudaHostAlloc((void **)&a, bytes, flags));
+    checkCudaErrors(cudaHostAlloc((void **)&a, bytes, flags));   // 使用函数 cudaHostAlloc() 一步到位
     checkCudaErrors(cudaHostAlloc((void **)&b, bytes, flags));
     checkCudaErrors(cudaHostAlloc((void **)&c, bytes, flags));
 #endif
   }
 
   /* Initialize the vectors. */
-
+  // 初始化和内存映射
   for (n = 0; n < nelem; n++) {
     a[n] = rand() / (float)RAND_MAX;
     b[n] = rand() / (float)RAND_MAX;
@@ -198,6 +202,7 @@ int main(int argc, char **argv) {
 #endif
 
   /* Call the GPU kernel using the CPU pointers residing in CPU mapped memory.
+  * // 调用内核
    */
   printf("> vectorAddGPU kernel will add vectors using mapped CPU memory...\n");
   dim3 block(256);
@@ -209,14 +214,16 @@ int main(int argc, char **argv) {
   /* Compare the results */
 
   printf("> Checking the results from vectorAddGPU() ...\n");
+  // 检查结果
   errorNorm = 0.f;
   refNorm = 0.f;
 
   for (n = 0; n < nelem; n++) {
-    ref = a[n] + b[n];
+    // ref 为 CPU 计算的和，diff 为 GPU 计算结果与 CPU 计算结果的差          
+    ref = a[n] + b[n];  
     diff = c[n] - ref;
-    errorNorm += diff * diff;
-    refNorm += ref * ref;
+    errorNorm += diff * diff;  // 向量 a + b 的两种计算结果的差的平方
+    refNorm += ref * ref;      // 向量 a 与向量 b 的和的平方
   }
 
   errorNorm = (float)sqrt((double)errorNorm);
@@ -227,7 +234,7 @@ int main(int argc, char **argv) {
   printf("> Releasing CPU memory...\n");
 
   if (bPinGenericMemory) {
-#if CUDART_VERSION >= 4000
+#if CUDART_VERSION >= 4000  // 清理工作
     checkCudaErrors(cudaHostUnregister(a));
     checkCudaErrors(cudaHostUnregister(b));
     checkCudaErrors(cudaHostUnregister(c));

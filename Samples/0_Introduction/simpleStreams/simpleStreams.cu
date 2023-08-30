@@ -72,8 +72,8 @@ const char *sDeviceSyncMethod[] = {
 #endif
 
 // Macro to aligned up to the memory size in question
-#define MEMORY_ALIGNMENT 4096
-#define ALIGN_UP(x, size) (((size_t)x + (size - 1)) & (~(size - 1)))
+#define MEMORY_ALIGNMENT 4096  // 内存对齐到 4KB
+#define ALIGN_UP(x, size) (((size_t)x + (size - 1)) & (~(size - 1)))   // x 除以 size 向上取整
 
 __global__ void init_array(int *g_data, int *factor, int num_iterations) {
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -98,7 +98,7 @@ inline void AllocateHostMemory(bool bPinGenericMemory, int **pp_a,
                                int **ppAligned_a, int nbytes) {
 #if CUDART_VERSION >= 4000
 #if !defined(__arm__) && !defined(__aarch64__)
-  if (bPinGenericMemory) {
+  if (bPinGenericMemory) { // 申请原生页对齐锁定内存
 // allocate a generic page-aligned chunk of system memory
 #ifdef WIN32
     printf(
@@ -124,7 +124,7 @@ inline void AllocateHostMemory(bool bPinGenericMemory, int **pp_a,
         (float)nbytes / 1048576.0f);
     // pin allocate memory
     checkCudaErrors(
-        cudaHostRegister(*ppAligned_a, nbytes, cudaHostRegisterMapped));
+        cudaHostRegister(*ppAligned_a, nbytes, cudaHostRegisterMapped)); // 页锁定内存，异步拷贝必需
   } else
 #endif
 #endif
@@ -132,7 +132,7 @@ inline void AllocateHostMemory(bool bPinGenericMemory, int **pp_a,
     printf("> cudaMallocHost() allocating %4.2f Mbytes of system memory\n",
            (float)nbytes / 1048576.0f);
     // allocate host memory (pinned is required for achieve asynchronicity)
-    checkCudaErrors(cudaMallocHost((void **)pp_a, nbytes));
+    checkCudaErrors(cudaMallocHost((void **)pp_a, nbytes));  // 申请时已经页锁定
     *ppAligned_a = *pp_a;
   }
 }
@@ -279,7 +279,7 @@ int main(int argc, char **argv) {
     printf("Device: <%s> canMapHostMemory: %s\n", deviceProp.name,
            deviceProp.canMapHostMemory ? "Yes" : "No");
 
-    if (deviceProp.canMapHostMemory == 0) {
+    if (deviceProp.canMapHostMemory == 0) { // 检查 GPU 是否支持主机内存映射，否则原生内存还是不能用
       printf(
           "Using cudaMallocHost, CUDA device does not support mapping of "
           "generic host memory\n");
@@ -288,11 +288,12 @@ int main(int argc, char **argv) {
   }
 
   // Anything that is less than 32 Cores will have scaled down workload
+  //// 流处理器个数不足 32 时降低测试负载（源代码没有减少 nByte 的大小，已改进）
   scale_factor =
       max((32.0f / (_ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) *
                     (float)deviceProp.multiProcessorCount)),
           1.0f);
-  n = (int)rint((float)n / scale_factor);
+  n = (int)rint((float)n / scale_factor); 
 
   printf("> CUDA Capable: SM %d.%d hardware\n", deviceProp.major,
          deviceProp.minor);
@@ -309,7 +310,7 @@ int main(int argc, char **argv) {
   printf("> Using CPU/GPU Device Synchronization method (%s)\n",
          sDeviceSyncMethod[device_sync_method]);
   checkCudaErrors(cudaSetDeviceFlags(
-      device_sync_method | (bPinGenericMemory ? cudaDeviceMapHost : 0)));
+      device_sync_method | (bPinGenericMemory ? cudaDeviceMapHost : 0)));  // 使用线程块同步，减少 CPU 的使用
 
   // allocate host memory
   int c = 5;            // value to which the array will be initialized
@@ -319,7 +320,7 @@ int main(int argc, char **argv) {
 
   // Allocate Host memory (could be using cudaMallocHost or VirtualAlloc/mmap if
   // using the new CUDA 4.0 features
-  AllocateHostMemory(bPinGenericMemory, &h_a, &hAligned_a, nbytes);
+  AllocateHostMemory(bPinGenericMemory, &h_a, &hAligned_a, nbytes);  // 使用设定的方式申请内存
 
   // allocate device memory
   int *d_a = 0,
@@ -362,7 +363,7 @@ int main(int argc, char **argv) {
   checkCudaErrors(cudaEventElapsedTime(&time_memcpy, start_event, stop_event));
   printf("memcopy:\t%.2f\n", time_memcpy);
 
-  // time kernel
+  // time kernel  // 多流测试
   threads = dim3(512, 1);
   blocks = dim3(n / threads.x, 1);
   checkCudaErrors(cudaEventRecord(start_event, 0));
@@ -378,7 +379,7 @@ int main(int argc, char **argv) {
   blocks = dim3(n / threads.x, 1);
   checkCudaErrors(cudaEventRecord(start_event, 0));
 
-  for (int k = 0; k < nreps; k++) {
+  for (int k = 0; k < nreps; k++) {  // 分流给出内核函数和数据回传工作
     init_array<<<blocks, threads>>>(d_a, d_c, niterations);
     checkCudaErrors(
         cudaMemcpy(hAligned_a, d_a, nbytes, cudaMemcpyDeviceToHost));

@@ -56,7 +56,7 @@
 #include <helper_cuda.h>  // helper functions for CUDA error check
 
 #define NUM_REPS 100  // number of repetitions performed
-#define TILE_DIM 16   // tile/block size
+#define TILE_DIM 16   // tile/block size   线程块尺寸
 
 const char *sSDKsample = "simplePitchLinearTexture";
 
@@ -117,6 +117,7 @@ int main(int argc, char **argv) {
 ////////////////////////////////////////////////////////////////////////////////
 void runTest(int argc, char **argv) {
   // Set array size
+    // 数组大小以及 x，y 方向上的偏移量
   const int nx = 2048;
   const int ny = 2048;
 
@@ -140,7 +141,7 @@ void runTest(int argc, char **argv) {
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
 
-  // Host allocation and initialization
+  // Host allocation and initialization  // 申请内存
   float *h_idata = (float *)malloc(sizeof(float) * nx * ny);
   float *h_odata = (float *)malloc(sizeof(float) * nx * ny);
   float *gold = (float *)malloc(sizeof(float) * nx * ny);
@@ -168,7 +169,7 @@ void runTest(int argc, char **argv) {
   checkCudaErrors(cudaMallocPitch((void **)&d_odata, &d_pitchBytes,
                                   nx * sizeof(float), ny));
 
-  // Copy host data to device
+  // Copy host data to device  // 拷贝内存（两组）
   // Pitch linear
   size_t h_pitchBytes = nx * sizeof(float);
 
@@ -213,7 +214,7 @@ void runTest(int argc, char **argv) {
   checkCudaErrors(
       cudaCreateTextureObject(&texRefArray, &texRes, &texDescr, NULL));
 
-  // Reference calculation
+  // Reference calculation // 理论计算结果
   for (int j = 0; j < ny; ++j) {
     int jshift = (j + y_shift) % ny;
 
@@ -223,7 +224,7 @@ void runTest(int argc, char **argv) {
     }
   }
 
-  // Run ShiftPitchLinear kernel
+  // Run ShiftPitchLinear kernel // 使用线性数组的纹理计算
   checkCudaErrors(
       cudaMemset2D(d_odata, d_pitchBytes, 0, nx * sizeof(float), ny));
 
@@ -240,7 +241,7 @@ void runTest(int argc, char **argv) {
   float timePL;
   checkCudaErrors(cudaEventElapsedTime(&timePL, start, stop));
 
-  // Check results
+  // Check results // 检查结果
   checkCudaErrors(cudaMemcpy2D(h_odata, h_pitchBytes, d_odata, d_pitchBytes,
                                nx * sizeof(float), ny, cudaMemcpyDeviceToHost));
 
@@ -253,7 +254,7 @@ void runTest(int argc, char **argv) {
     bTestResult = false;
   }
 
-  // Run ShiftArray kernel
+  // Run ShiftArray kernel 
   checkCudaErrors(
       cudaMemset2D(d_odata, d_pitchBytes, 0, nx * sizeof(float), ny));
   checkCudaErrors(cudaEventRecord(start, 0));
@@ -269,7 +270,7 @@ void runTest(int argc, char **argv) {
   float timeArray;
   checkCudaErrors(cudaEventElapsedTime(&timeArray, start, stop));
 
-  // Check results
+  // Check results  // 检查结果
   checkCudaErrors(cudaMemcpy2D(h_odata, h_pitchBytes, d_odata, d_pitchBytes,
                                nx * sizeof(float), ny, cudaMemcpyDeviceToHost));
   res = compareData(gold, h_odata, nx * ny, 0.0f, 0.15f);
@@ -279,6 +280,7 @@ void runTest(int argc, char **argv) {
     bTestResult = false;
   }
 
+  // 计算带宽和读取速度
   float bandwidthPL =
       2.f * 1000.f * nx * ny * sizeof(float) / (1.e+9f) / (timePL / NUM_REPS);
   float bandwidthArray = 2.f * 1000.f * nx * ny * sizeof(float) / (1.e+9f) /

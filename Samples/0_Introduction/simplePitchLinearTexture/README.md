@@ -1,4 +1,4 @@
-# simplePitchLinearTexture - Pitch Linear Texture
+﻿# simplePitchLinearTexture - Pitch Linear Texture
 
 ## Description
 
@@ -68,3 +68,9 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+对比设备线性二维数组和 CUDA 二维数组在纹理引用中的效率
+
+▶ 源代码。分别绑定相同大小的设备线性二维数组和 CUDA 二维数组为纹理引用，做简单的平移操作，重复若干次计算带宽和访问速度。
+涨姿势
+用到的函数都在以前的，有关线性二维数组和纹理内存使用方法的博客汇总讨论过了。
+由运行结果可知，使用二维纹理引用时，CUDA 二维数组的效率比线性二维数组更高。

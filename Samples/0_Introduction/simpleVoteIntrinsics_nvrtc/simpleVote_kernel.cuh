@@ -38,6 +38,7 @@
 // If ANY one of the threads (within the warp) of the predicated condition
 // returns a non-zero value, then all threads within this warp will return a
 // non-zero value
+// 任意一个线程抛出非零值则函数返回非零值
 extern "C" __global__ void VoteAnyKernel1(unsigned int *input,
                                           unsigned int *result, int size) {
   int tx = threadIdx.x;
@@ -50,6 +51,7 @@ extern "C" __global__ void VoteAnyKernel1(unsigned int *input,
 // If ALL of the threads (within the warp) of the predicated condition returns
 // a non-zero value, then all threads within this warp will return a non-zero
 // value
+// 当且仅当所有线程抛出非零值函数才返回非零值
 extern "C" __global__ void VoteAllKernel2(unsigned int *input,
                                           unsigned int *result, int size) {
   int tx = threadIdx.x;
@@ -60,21 +62,33 @@ extern "C" __global__ void VoteAllKernel2(unsigned int *input,
 
 // Kernel #3 is a directed test for the across-the-warp vote(all) intrinsic.
 // This kernel will test for conditions across warps, and within half warps
+// 跨线程束检查
 extern "C" __global__ void VoteAnyKernel3(bool *info, int warp_size) {
   int tx = threadIdx.x;
   unsigned int mask = 0xffffffff;
+  // 将每个线程指向等距间隔的元素，表明表决函数的运算结果可以进行分发
   bool *offs = info + (tx * 3);
 
   // The following should hold true for the second and third warp
+  // 第一组 “下标模 3 得 0” 的元素为 0，第二组和第三组 “下标模 3 得 0” 的元素为 1。“一组” 为 warp_size * 3 个元素
   *offs = __any_sync(mask, (tx >= (warp_size * 3) / 2));
+
   // The following should hold true for the "upper half" of the second warp,
   // and all of the third warp
+  // 第一组和第二组前半段 “下标模 3 得 1” 的元素为 0，第二组后半段和第三组 “下标模 3 得 1” 的元素为 1  
   *(offs + 1) = (tx >= (warp_size * 3) / 2 ? true : false);
 
   // The following should hold true for the third warp only
+  // 第一组和第二组 “下标模 3 得 2” 的元素为 0，第三组 “下标模 3 得 2” 的元素为 1 
   if (__all_sync(mask, (tx >= (warp_size * 3) / 2))) {
     *(offs + 2) = true;
   }
+
+  // 最终结果应该是：
+  //   1   2   3   4      15  16  17  18      30  31  32
+  // 000 000 000 000 ... 000 000 000 000 ... 000 000 000 
+  // 100 100 100 100 ... 100 100 110 110 ... 110 110 110
+  // 111 111 111 111 ... 111 111 111 111 ... 111 111 111
 }
 
 #endif

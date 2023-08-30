@@ -53,6 +53,7 @@ static const char *sSDKsample = "[simpleVoteIntrinsics]\0";
 #include "simpleVote_kernel.cuh"
 
 // Generate the test pattern for Tests 1 and 2
+// 构建原数组，size == 8 时结果为{0,0,0,3,4,0,ffffffff,ffffffff}
 void genVoteTestPattern(unsigned int *VOTE_PATTERN, int size) {
   // For testing VOTE.Any (all of these threads will return 0)
   for (int i = 0; i < size / 4; i++) {
@@ -75,6 +76,7 @@ void genVoteTestPattern(unsigned int *VOTE_PATTERN, int size) {
   }
 }
 
+// 数组检查函数，type == 1：把数组元素全部加起来，结果非零就报错；type == 0：把数组元素全部加起来，结果不等于 WARP_SIZE 就报错
 int checkErrors1(unsigned int *h_result, int start, int end, int warp_size,
                  const char *voteType) {
   int i, sum = 0;
@@ -117,6 +119,7 @@ int checkErrors2(unsigned int *h_result, int start, int end, int warp_size,
   return (sum != warp_size);
 }
 
+// 数组检查的中间函数，type == 1：使用(1,0,0,0)的模式调用数组检查函数；type == 0：使用(1,1,1,0)的模式调用数组检查函数
 // Verification code for Kernel #1
 int checkResultsVoteAnyKernel1(unsigned int *h_result, int size,
                                int warp_size) {
@@ -165,9 +168,10 @@ int checkResultsVoteAnyKernel3(bool *hinfo, int size) {
 
   for (i = 0; i < size * 3; i++) {
     switch (i % 3) {
-      case 0:
+      case 0  
 
         // First warp should be all zeros.
+        // 等价于 if (i < totalThread && hinfo[i] == 0 || i >= totalThread && hinfo == 1)
         if (hinfo[i] != (i >= size * 1)) {
           error_count++;
         }
@@ -177,6 +181,8 @@ int checkResultsVoteAnyKernel3(bool *hinfo, int size) {
       case 1:
 
         // First warp and half of second should be all zeros.
+        // 等价于 if (i < totalThread * 3 / 2 && hinfo[i] == 0 || i >= totalThread * 3 / 2 && hinfo == 1)   
+
         if (hinfo[i] != (i >= size * 3 / 2)) {
           error_count++;
         }
@@ -184,7 +190,7 @@ int checkResultsVoteAnyKernel3(bool *hinfo, int size) {
         break;
 
       case 2:
-
+          // 等价于 if (i < totalThread * 2 && hinfo[i] == 0 || i >= totalThread * 2 && hinfo == 1)
         // First two warps should be all zeros.
         if (hinfo[i] != (i >= size * 2)) {
           error_count++;
@@ -220,6 +226,8 @@ int main(int argc, char **argv) {
       "> GPU device has %d Multi-Processors, SM %d.%d compute capabilities\n\n",
       deviceProp.multiProcessorCount, deviceProp.major, deviceProp.minor);
 
+  //使用长度为 4 个线程束的数组，刚好分为 4 个组（全零，后交替非零，前交替非零，全非零）进行表决
+
   h_input = (unsigned int *)malloc(VOTE_DATA_GROUP * warp_size *
                                    sizeof(unsigned int));
   h_result = (unsigned int *)malloc(VOTE_DATA_GROUP * warp_size *
@@ -236,6 +244,7 @@ int main(int argc, char **argv) {
                              cudaMemcpyHostToDevice));
 
   // Start of Vote Any Test Kernel #1
+  //测试一，any
   printf("[VOTE Kernel Test 1/3]\n");
   printf("\tRunning <<Vote.Any>> kernel1 ...\n");
   {
@@ -254,6 +263,7 @@ int main(int argc, char **argv) {
       h_result, VOTE_DATA_GROUP * warp_size, warp_size);
 
   // Start of Vote All Test Kernel #2
+  // 测试二，all
   printf("\n[VOTE Kernel Test 2/3]\n");
   printf("\tRunning <<Vote.All>> kernel2 ...\n");
   {
@@ -278,6 +288,7 @@ int main(int argc, char **argv) {
   cudaMemcpy(dinfo, hinfo, warp_size * 3 * 3 * sizeof(bool),
              cudaMemcpyHostToDevice);
 
+  // 测试三，使用长度为 9 个线程束的数组，但调用内核时只使用数量为 3 个线程束的线程，即分为 3 组，每组 WARP_SIZE * 3 个元素
   printf("\n[VOTE Kernel Test 3/3]\n");
   printf("\tRunning <<Vote.Any>> kernel3 ...\n");
   {

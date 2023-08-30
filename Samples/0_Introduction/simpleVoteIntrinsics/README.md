@@ -68,3 +68,6 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+介绍了线程束表决函数的实例（其概念介绍见 http://www.cnblogs.com/cuancuancuanhao/p/7841512.html），并在静态和运行时编译两种条件下进行使用。
+涨姿势
+线程表决函数见另一篇博客，注意 CUDA9.0 改进了部分函数，废弃了旧的部分函数。

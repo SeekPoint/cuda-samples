@@ -125,7 +125,7 @@ void runTest(int argc, const char **argv) {
     dim3 dimGrid(nBlocks);
     dim3 dimBlock(nThreads);
 
-    // Test library functions.
+    // Test library functions.  // 函数指针需要用 cudaMemcpyFromSymbol 放入设备常量内存
     deviceFunc hFunctionPtr;                                                    // 作为调用参数的函数指针
     cudaMemcpyFromSymbol(&hFunctionPtr, dMultiplyByTwoPtr, sizeof(deviceFunc)); // 给 hFunctionPtr 一个地址，方便调用
     transformVector<<<dimGrid, dimBlock>>>(dVector, hFunctionPtr, kVectorSize);
@@ -142,7 +142,7 @@ void runTest(int argc, const char **argv) {
                                kVectorSize * sizeof(float),
                                cudaMemcpyDeviceToHost));
 
-    // Check results.
+    // Check results.  // 检查结果
     for (int i = 0; i < kVectorSize; ++i) {
       if (fabs(hVector[i] - hResultVector[i]) > EPS) {
         cout << "Computations were incorrect..." << endl;

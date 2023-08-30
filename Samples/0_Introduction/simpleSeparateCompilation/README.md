@@ -1,4 +1,4 @@
-# simpleSeparateCompilation - Simple Static GPU Device Library
+ï»¿# simpleSeparateCompilation - Simple Static GPU Device Library
 
 ## Description
 
@@ -69,16 +69,26 @@ The samples makefiles can take advantage of certain options:
 ## References (for more details)
 
 https://www.cnblogs.com/cuancuancuanhao/p/8013139.html
-¼òµ¥µÄ½«´¿ C/C++ º¯Êı·Åµ½ÁíÒ»¸öÎÄ¼şÖĞ£¬ÀûÓÃÍ·ÎÄ¼şÒıÓÃµ½Ö÷Ìå .cu ÖĞÀ´£¬±àÒëÊ±¹²Í¬±àÒë¡£
-Ô´´úÂë£¬°Ñ C++ µÄ²¿·ÖÈ¥µôÁË
+ç®€å•çš„å°†çº¯ C/C++ å‡½æ•°æ”¾åˆ°å¦ä¸€ä¸ªæ–‡ä»¶ä¸­ï¼Œåˆ©ç”¨å¤´æ–‡ä»¶å¼•ç”¨åˆ°ä¸»ä½“ .cu ä¸­æ¥ï¼Œç¼–è¯‘æ—¶å…±åŒç¼–è¯‘ã€‚
+æºä»£ç ï¼ŒæŠŠ C++ çš„éƒ¨åˆ†å»æ‰äº†
 
-ÕÇ×ËÊÆ
+æ¶¨å§¿åŠ¿
 
-¸´ÖÆ´úÂë
+å¤åˆ¶ä»£ç 
 // cuda_runtime_api.h
 #define __dv(v) \
         = v
 
 extern __host__ cudaError_t CUDARTAPI cudaMemcpyFromSymbol(void *dst, const void *symbol, size_t count, size_t offset __dv(0), 
                                                             enum cudaMemcpyKind kind __dv(cudaMemcpyDeviceToHost));
-    // ´ÓÖ¸¶¨·ûºÅ symbol ´¦Æ«ÒÆ offset ×Ö½Ú´¦£¬¿½±´ count ×Ö½Úµ½ dst£¬Ä¬ÈÏÄ£Ê½ÎªÉè±¸¿½µ½Ö÷»ú
+    // ä»æŒ‡å®šç¬¦å· symbol å¤„åç§» offset å­—èŠ‚å¤„ï¼Œæ‹·è´ count å­—èŠ‚åˆ° dstï¼Œé»˜è®¤æ¨¡å¼ä¸ºè®¾å¤‡æ‹·åˆ°ä¸»æœº
+
+
+https://www.cnblogs.com/cuancuancuanhao/p/7895550.html
+æŠŠä»£ç æ–‡ä»¶å’Œä¸»ç¨‹åºæ–‡ä»¶åˆ†å¼€ç¼–è¯‘ï¼Œä½¿ç”¨å¤´æ–‡ä»¶çš„å½¢å¼è¿›è¡Œå¼•ç”¨ã€‚
+
+æ¶¨å§¿åŠ¿
+å†™åœ¨å…¶ä»– .cpp æ–‡ä»¶ä¸­çš„è®¾å¤‡å‡½æ•°ï¼Œéœ€è¦ç”¨å‡½æ•° cudaMemcpyFromSymbol() æ”¾å…¥è®¾å¤‡å¸¸é‡å†…å­˜æ‰èƒ½ä½¿ç”¨ã€‚
+1 typedef float(*deviceFunc)(float);
+2 deviceFunc hFunctionPtr;
+3 cudaMemcpyFromSymbol(&hFunctionPtr, dMultiplyByTwoPtr, sizeof(deviceFunc));

@@ -68,3 +68,7 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+
+https://www.cnblogs.com/cuancuancuanhao/p/7895340.html
+0_Simple__simplePrintf
+在设备代码中使用函数 printf()，没有新的认识。

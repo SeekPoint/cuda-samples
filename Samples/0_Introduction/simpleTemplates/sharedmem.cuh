@@ -68,6 +68,7 @@
 // this
 // struct by putting an undefined symbol in the function body so it won't
 // compile.
+// SharedMemory 的封装
 template <typename T>
 struct SharedMemory {
   // Ensure that we won't compile any un-specialized types
@@ -81,7 +82,7 @@ struct SharedMemory {
 // Following are the specializations for the following types.
 // int, uint, char, uchar, short, ushort, long, ulong, bool, float, and double
 // One could also specialize it for user-defined types.
-
+// SharedMemory 的各种数据类型的实现 
 template <>
 struct SharedMemory<int> {
   __device__ int *getPointer() {

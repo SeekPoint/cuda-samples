@@ -314,7 +314,7 @@ static CUresult initCUDA(int argc, char **argv, CUfunction *transform) {
   // first search for the module_path before we try to load the results
   std::ostringstream fatbin;
 
-  if (!findFatbinPath(FATBIN_FILE, module_path, argv, fatbin)) {
+  if (!findFatbinPath(FATBIN_FILE, module_path, argv, fatbin)) {  // 使用的是.ptx，需要运行时编译
     exit(EXIT_FAILURE);
   } else {
     printf("> initCUDA loading module: <%s>\n", module_path.c_str());

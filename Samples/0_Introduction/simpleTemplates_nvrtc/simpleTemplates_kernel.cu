@@ -40,7 +40,7 @@ __device__ void testKernel(T *g_idata, T *g_odata) {
   SharedMemory<T> smem;
 
   T *sdata = smem.getPointer();
-
+  // 以上两行结合，等效于 extern __shared__  T sdata[];
   // access thread id
   const unsigned int tid = threadIdx.x;
 

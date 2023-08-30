@@ -62,6 +62,7 @@ template <class T>
 __global__ void testKernel(T *g_idata, T *g_odata) {
   // Shared mem size is determined by the host app at run time
   SharedMemory<T> smem;
+  // 以上两行结合，等效于 extern __shared__  T sdata[];
   T *sdata = smem.getPointer();
 
   // access thread id
@@ -87,8 +88,8 @@ template <class T>
 void runTest(int argc, char **argv, int len);
 
 template <class T>
-void computeGold(T *reference, T *idata, const unsigned int len) {
-  const T T_len = static_cast<T>(len);
+void computeGold(T *reference, T *idata, const unsigned int len) {  // 生成理论结果数据
+  const T T_len = static_cast<T>(len);  // 强制类型转换（const unsigned int -> T），并加上 const 限定
 
   for (unsigned int i = 0; i < len; ++i) {
     reference[i] = idata[i] * T_len;
@@ -114,6 +115,7 @@ int main(int argc, char **argv) {
 // functions for different types.
 
 // Here's the generic wrapper for cutCompare*
+// ArrayComparator 的封装
 template <class T>
 class ArrayComparator {
  public:
@@ -125,6 +127,7 @@ class ArrayComparator {
 };
 
 // Here's the specialization for ints:
+// int 和 flaot 的实现，其中的函数 compareData() 定义于 helper_image.h
 template <>
 class ArrayComparator<int> {
  public:
@@ -143,6 +146,7 @@ class ArrayComparator<float> {
 };
 
 // Here's the generic wrapper for cutWriteFile*
+// ArrayFileWriter 的封装
 template <class T>
 class ArrayFileWriter {
  public:
@@ -154,6 +158,7 @@ class ArrayFileWriter {
 };
 
 // Here's the specialization for ints:
+// int 和 flaot 的实现，其中的函数 sdkWriteFile() 定义于 helper_image.h
 template <>
 class ArrayFileWriter<int> {
  public:
@@ -205,6 +210,7 @@ void runTest(int argc, char **argv, int len) {
     h_idata[i] = (T)i;
   }
 
+  // 申请内存
   // allocate device memory
   T *d_idata;
   checkCudaErrors(cudaMalloc((void **)&d_idata, mem_size));
@@ -237,8 +243,9 @@ void runTest(int argc, char **argv, int len) {
   sdkDeleteTimer(&timer);
 
   // compute reference solution
+  // 检查结果
   T *reference = (T *)malloc(mem_size);
-  computeGold<T>(reference, h_idata, num_threads);
+  computeGold<T>(reference, h_idata, num_threads);  // 生成理论结果数据
 
   ArrayComparator<T> comparator;
   ArrayFileWriter<T> writer;
@@ -246,7 +253,7 @@ void runTest(int argc, char **argv, int len) {
   // check result
   if (checkCmdLineFlag(argc, (const char **)argv, "regression")) {
     // write file for regression test
-    writer.write("./data/regression.dat", h_odata, num_threads, 0.0f);
+    writer.write("./data/regression.dat", h_odata, num_threads, 0.0f);  // 写入文件的部分
   } else {
     // custom output handling when no regression test running
     // in this case check if the result is equivalent to the expected solution

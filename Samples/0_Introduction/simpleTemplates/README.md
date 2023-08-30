@@ -68,3 +68,7 @@ The samples makefiles can take advantage of certain options:
 
 ## References (for more details)
 
+使用 C++ 的模板
+
+涨姿势
+● 封装了 SharedMemory，ArrayComparator，ArrayFileWriter 三个模板，并定义了其在不同的数据类型下的实现。

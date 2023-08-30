@@ -57,8 +57,8 @@ template <class T>
 void runTest(int argc, char **argv, int len);
 
 template <class T>
-void computeGold(T *reference, T *idata, const unsigned int len) {
-  const T T_len = static_cast<T>(len);
+void computeGold(T *reference, T *idata, const unsigned int len) {  // 生成理论结果数据
+  const T T_len = static_cast<T>(len);  // 强制类型转换（const unsigned int -> T），并加上 const 限定
 
   for (unsigned int i = 0; i < len; ++i) {
     reference[i] = idata[i] * T_len;
@@ -88,6 +88,7 @@ int main(int argc, char **argv) {
 // template specialization to wrap up CUTIL's array comparison and file writing
 // functions for different types.
 
+// ArrayComparator 的封装
 // Here's the generic wrapper for cutCompare*
 template <class T>
 class ArrayComparator {
@@ -99,7 +100,7 @@ class ArrayComparator {
   }
 };
 
-// Here's the specialization for ints:
+// Here's the specialization for ints:  // int 和 flaot 的实现，其中的函数 compareData() 定义于 helper_image.h
 template <>
 class ArrayComparator<int> {
  public:
@@ -117,6 +118,7 @@ class ArrayComparator<float> {
   }
 };
 
+// ArrayFileWriter 的封装
 // Here's the generic wrapper for cutWriteFile*
 template <class T>
 class ArrayFileWriter {
@@ -128,6 +130,7 @@ class ArrayFileWriter {
   }
 };
 
+// int 和 flaot 的实现，其中的函数 sdkWriteFile() 定义于 helper_image.h
 // Here's the specialization for ints:
 template <>
 class ArrayFileWriter<int> {
@@ -147,6 +150,7 @@ class ArrayFileWriter<float> {
   }
 };
 
+// getKernel 的模板
 template <typename T>
 CUfunction getKernel(CUmodule in);
 
@@ -177,10 +181,12 @@ size_t cubinSize;
 
 template <class T>
 void runTest(int argc, char **argv, int len) {
+
+    // 与静态不同，编译 PTX
   if (!moduleLoaded) {
     kernel_file = sdkFindFilePath("simpleTemplates_kernel.cu", argv[0]);
-    compileFileToCUBIN(kernel_file, argc, argv, &cubin, &cubinSize, 0);
-    module = loadCUBIN(cubin, argc, argv);
+    compileFileToCUBIN(kernel_file, argc, argv, &cubin, &cubinSize, 0);  // 1, NULL 分别为 argc 和 argv
+    module = loadCUBIN(cubin, argc, argv);  // 1, NULL 分别为 argc 和 argv，有关于 GPU的输出
     moduleLoaded = true;
   }
 
@@ -194,17 +200,17 @@ void runTest(int argc, char **argv, int len) {
   unsigned int num_threads = len;
   unsigned int mem_size = sizeof(float) * num_threads;
 
-  // allocate host memory
-  T *h_idata = (T *)malloc(mem_size);
+  // allocate host memory  // 申请内存
+  T *h_idata = (T *)malloc(mem_size);   // 与静态不同
 
   // initialize the memory
   for (unsigned int i = 0; i < num_threads; ++i) {
     h_idata[i] = (T)i;
   }
 
-  // allocate device memory
+  // allocate device memory 
   CUdeviceptr d_idata;
-  checkCudaErrors(cuMemAlloc(&d_idata, mem_size));
+  checkCudaErrors(cuMemAlloc(&d_idata, mem_size)); // 与静态不同
 
   // copy host memory to device
   checkCudaErrors(cuMemcpyHtoD(d_idata, h_idata, mem_size));
@@ -217,7 +223,7 @@ void runTest(int argc, char **argv, int len) {
   dim3 grid(1, 1, 1);
   dim3 threads(num_threads, 1, 1);
 
-  // execute the kernel
+  // execute the kernel  // 计算和计时
   CUfunction kernel_addr = getKernel<T>(module);
 
   void *arr[] = {(void *)&d_idata, (void *)&d_odata};
@@ -229,13 +235,13 @@ void runTest(int argc, char **argv, int len) {
                      0));
 
   // check if kernel execution generated and error
-  checkCudaErrors(cuCtxSynchronize());
+  checkCudaErrors(cuCtxSynchronize());  // 上下文同步
 
   // allocate mem for the result on host side
   T *h_odata = (T *)malloc(mem_size);
 
   // copy result from device to host
-  checkCudaErrors(cuMemcpyDtoH(h_odata, d_odata, sizeof(T) * num_threads));
+  checkCudaErrors(cuMemcpyDtoH(h_odata, d_odata, sizeof(T) * num_threads)); // 与静态不同
 
   sdkStopTimer(&timer);
   printf("Processing time: %f (ms)\n", sdkGetTimerValue(&timer));
@@ -244,15 +250,16 @@ void runTest(int argc, char **argv, int len) {
   // compute reference solution
   T *reference = (T *)malloc(mem_size);
 
-  computeGold<T>(reference, h_idata, num_threads);
+  // 检查结果
+  computeGold<T>(reference, h_idata, num_threads); // 生成理论结果数据
 
   ArrayComparator<T> comparator;
   ArrayFileWriter<T> writer;
 
   // check result
-  if (checkCmdLineFlag(argc, (const char **)argv, "regression")) {
+  if (checkCmdLineFlag(argc, (const char **)argv, "regression")) { 
     // write file for regression test
-    writer.write("./data/regression.dat", h_odata, num_threads, 0.0f);
+    writer.write("./data/regression.dat", h_odata, num_threads, 0.0f); // 写入文件的部分
   } else {
     // custom output handling when no regression test running
     // in this case check if the result is equivalent to the expected solution
@@ -267,6 +274,6 @@ void runTest(int argc, char **argv, int len) {
   free(h_idata);
   free(h_odata);
   free(reference);
-  checkCudaErrors(cuMemFree(d_idata));
+  checkCudaErrors(cuMemFree(d_idata));  // 与静态不同
   checkCudaErrors(cuMemFree(d_odata));
 }
